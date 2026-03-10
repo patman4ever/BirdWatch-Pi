@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  birdwatch-pi:
+    build: ./app
+    container_name: birdwatch-pi
+    restart: unless-stopped
+    privileged: true                  # nodig voor audio-toegang
+    devices:
+      - /dev/snd:/dev/snd             # ALSA audio devices
+    volumes:
+      - ./data:/data                  # opslag voor waarnemingen & CSV
+      - ./config.env:/app/config.env:ro
+    environment:
+      - AUDIO_DEVICE=${AUDIO_DEVICE:-default}
+      - SAMPLE_RATE=${SAMPLE_RATE:-48000}
+      - MIN_CONFIDENCE=${MIN_CONFIDENCE:-0.7}
+      - LOCATION_LAT=${LOCATION_LAT:-52.3}
+      - LOCATION_LON=${LOCATION_LON:-5.0}
+      - LANGUAGE=${LANGUAGE:-nl}
+    ports:
+      - "7766:7766"                   # Web UI (text-only)
+    network_mode: host                # makkelijker in veld zonder router
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7766/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
