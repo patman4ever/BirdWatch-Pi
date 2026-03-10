@@ -16,9 +16,37 @@ echo "========================="
 # ── Controleer Docker ──────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   echo "➜ Docker niet gevonden. Installeren..."
-  curl -fsSL https://get.docker.com | sh
+
+  sudo apt-get update -qq
+  sudo apt-get install -y ca-certificates curl gnupg
+
+  # Gebruik Debian-repo (werkt ook op Raspberry Pi OS Trixie/Bookworm)
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/debian/gpg \
+    -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+  ARCH=$(dpkg --print-architecture)
+  # Trixie heeft nog geen eigen Docker-repo, val terug op bookworm
+  CODENAME=$(. /etc/os-release && echo "${VERSION_CODENAME:-bookworm}")
+  if [[ "$CODENAME" == "trixie" ]]; then
+    CODENAME="bookworm"
+  fi
+
+  echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.asc] \
+https://download.docker.com/linux/debian $CODENAME stable" \
+    | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  sudo apt-get update -qq
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin
+
+  sudo systemctl enable --now docker
   sudo usermod -aG docker "$USER"
-  echo "✓ Docker geïnstalleerd. Log opnieuw in als nieuwe sessie nodig is."
+  echo "✓ Docker geïnstalleerd."
+  echo "  ⚠  Start een nieuwe SSH-sessie zodat groepsrechten actief worden."
+  echo "     Daarna opnieuw uitvoeren: bash install.sh"
+  exit 0
 fi
 
 if ! $COMPOSE_CMD version &>/dev/null 2>&1; then
